@@ -301,8 +301,9 @@ static INLINE GLuint CPU_TO_LE32(GLuint x)
  * ASSERT macro
  */
 #if !defined(_WIN32_WCE)
+#undef ASSERT /* ReactOS's ndk/rtlfuncs.h may have already defined this with different semantics */
 #if defined(BUILD_FOR_SNAP) && defined(CHECKED)
-#  define ASSERT(X)   _CHECK(X) 
+#  define ASSERT(X)   _CHECK(X)
 #elif defined(DEBUG)
 #  define ASSERT(X)   assert(X)
 #else
