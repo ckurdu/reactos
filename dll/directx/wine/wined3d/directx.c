@@ -4203,36 +4203,63 @@ static BOOL wined3d_adapter_init_gl_caps(struct wined3d_adapter *adapter,
     {
         GLint counter_bits;
 
-        GL_EXTCALL(glGetQueryiv(GL_SAMPLES_PASSED, GL_QUERY_COUNTER_BITS, &counter_bits));
-        TRACE("Occlusion query counter has %d bits.\n", counter_bits);
-        if (!counter_bits)
+        if (!GL_EXTCALL(glGetQueryiv))
+        {
+            WARN("ARB_occlusion_query advertised via GL version promotion but glGetQueryiv is NULL, disabling.\n");
             gl_info->supported[ARB_OCCLUSION_QUERY] = FALSE;
+        }
+        else
+        {
+            GL_EXTCALL(glGetQueryiv(GL_SAMPLES_PASSED, GL_QUERY_COUNTER_BITS, &counter_bits));
+            TRACE("Occlusion query counter has %d bits.\n", counter_bits);
+            if (!counter_bits)
+                gl_info->supported[ARB_OCCLUSION_QUERY] = FALSE;
+        }
     }
+
     if (gl_info->supported[ARB_TIMER_QUERY])
     {
         GLint counter_bits;
 
-        GL_EXTCALL(glGetQueryiv(GL_TIMESTAMP, GL_QUERY_COUNTER_BITS, &counter_bits));
-        TRACE("Timestamp query counter has %d bits.\n", counter_bits);
-        if (!counter_bits)
+        if (!GL_EXTCALL(glGetQueryiv))
+        {
+            WARN("ARB_timer_query advertised via GL version promotion but glGetQueryiv is NULL, disabling.\n");
             gl_info->supported[ARB_TIMER_QUERY] = FALSE;
+        }
+        else
+        {
+            GL_EXTCALL(glGetQueryiv(GL_TIMESTAMP, GL_QUERY_COUNTER_BITS, &counter_bits));
+            TRACE("Timestamp query counter has %d bits.\n", counter_bits);
+            if (!counter_bits)
+                gl_info->supported[ARB_TIMER_QUERY] = FALSE;
+        }
     }
+
     if (gl_version >= MAKEDWORD_VERSION(3, 0))
     {
         GLint counter_bits;
 
         gl_info->supported[WINED3D_GL_PRIMITIVE_QUERY] = TRUE;
 
-        GL_EXTCALL(glGetQueryiv(GL_PRIMITIVES_GENERATED, GL_QUERY_COUNTER_BITS, &counter_bits));
-        TRACE("Primitives query counter has %d bits.\n", counter_bits);
-        if (!counter_bits)
+        if (!GL_EXTCALL(glGetQueryiv))
+        {
+            WARN("Primitive queries advertised via GL version promotion but glGetQueryiv is NULL, disabling.\n");
             gl_info->supported[WINED3D_GL_PRIMITIVE_QUERY] = FALSE;
+        }
+        else
+        {
+            GL_EXTCALL(glGetQueryiv(GL_PRIMITIVES_GENERATED, GL_QUERY_COUNTER_BITS, &counter_bits));
+            TRACE("Primitives query counter has %d bits.\n", counter_bits);
+            if (!counter_bits)
+                gl_info->supported[WINED3D_GL_PRIMITIVE_QUERY] = FALSE;
 
-        GL_EXTCALL(glGetQueryiv(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN, GL_QUERY_COUNTER_BITS, &counter_bits));
-        TRACE("Transform feedback primitives query counter has %d bits.\n", counter_bits);
-        if (!counter_bits)
-            gl_info->supported[WINED3D_GL_PRIMITIVE_QUERY] = FALSE;
+            GL_EXTCALL(glGetQueryiv(GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN, GL_QUERY_COUNTER_BITS, &counter_bits));
+            TRACE("Transform feedback primitives query counter has %d bits.\n", counter_bits);
+            if (!counter_bits)
+                gl_info->supported[WINED3D_GL_PRIMITIVE_QUERY] = FALSE;
+        }
     }
+
     if (gl_info->supported[ARB_VIEWPORT_ARRAY])
     {
         GLint subpixel_bits;
@@ -4304,10 +4331,18 @@ static BOOL wined3d_adapter_init_gl_caps(struct wined3d_adapter *adapter,
         TRACE("GLSL version string: %s.\n", debugstr_a(str));
 
         /* The format of the GLSL version string is "major.minor[.release] [vendor info]". */
-        sscanf(str, "%u.%u", &major, &minor);
-        gl_info->glsl_version = MAKEDWORD_VERSION(major, minor);
-        if (gl_info->glsl_version >= MAKEDWORD_VERSION(1, 30))
-            gl_info->supported[WINED3D_GLSL_130] = TRUE;
+        if (str)
+        {
+            sscanf(str, "%u.%u", &major, &minor);
+            gl_info->glsl_version = MAKEDWORD_VERSION(major, minor);
+            if (gl_info->glsl_version >= MAKEDWORD_VERSION(1, 30))
+                gl_info->supported[WINED3D_GLSL_130] = TRUE;
+        }
+        else
+        {
+            WARN("ARB_shading_language_100 advertised via GL version promotion but GL_SHADING_LANGUAGE_VERSION_ARB is NULL, disabling.\n");
+            gl_info->supported[ARB_SHADING_LANGUAGE_100] = FALSE;
+        }
     }
 
     checkGLcall("extension detection");
@@ -6747,6 +6782,7 @@ static BOOL wined3d_adapter_init(struct wined3d_adapter *adapter, UINT ordinal, 
                 "This is unsupported, and will be removed in a future version.\n");
 
     wined3d_adapter_init_fb_cfgs(adapter, caps_gl_ctx.dc);
+
     /* We haven't found any suitable formats. This should only happen in
      * case of GDI software rendering, which is pretty useless anyway. */
     if (!adapter->cfg_count)
